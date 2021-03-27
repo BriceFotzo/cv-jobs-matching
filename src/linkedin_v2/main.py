@@ -148,3 +148,4 @@ if __name__=="__main__":
     keyword_job=quote(job_query_online)
     jobs="https://www.linkedin.com/jobs/search/?keywords="+keyword_job+"&location=France"
     matching_pipeline(job_link=jobs,user=userN,pwd=pswd,resume_path="CV_Brice_FOTZO.docx")
+#BF7662Ln@89
