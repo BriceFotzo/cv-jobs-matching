@@ -20,7 +20,12 @@ from gensim.summarization import keywords# Import the library
 import docx2txt
 nlp_job = fr_core_news_sm.load()
 nlp_resume=fr_core_news_sm.load()
+from dotenv import load_dotenv,dotenv_values
+from getpass import getpass
 
+load_dotenv()
+
+config = dotenv_values(".env")
 
 
 
@@ -42,23 +47,29 @@ def get_jobs_links(job_query,user,pwd):
     login_button.click()
 
     browser.get(job_query)
-
+    sleep(3)
     jobs=browser.find_elements_by_class_name("job-card-container")
-
+    
+    
+    
     jobs_links=[]
+    jobs_head=[]
     for i in jobs:
         jobs_links.append(i.find_elements_by_tag_name('a')[0].get_attribute('href'))
-    return jobs_links
+        jobs_head.append(i.find_element_by_class_name("artdeco-entity-lockup__content").text)
+    return browser,jobs_links,jobs_head
 
 
-def scrape_job(job_link):
+def scrape_job(browser,job_link):
     """
     """
     browser.get(job_link)
+    sleep(3)
     more_button=browser.find_element_by_class_name("artdeco-card__action")
     more_button.click()
-    time.sleep(3)
+    sleep(3)
     content=browser.find_elements_by_class_name('jobs-box__html-content')[0].text
+    # print(content)
     return content
 
 def get_keywords_from_job(job_description):
@@ -75,6 +86,7 @@ def get_keywords_from_job(job_description):
             continue
         if(token.pos_ in pos_tag):
             keyword.append(token.text)
+    return keyword
             
 def get_n_common_words(keywords,n):
     freq_word = Counter(keywords)
@@ -94,17 +106,14 @@ def get_sent_strength(freq_word):
     return sent_strength
 def summurize_sent(sent_strength,ratio=3):
     summarized_sentences = nlargest(ratio, sent_strength, key=sent_strength.get)
-    print(summarized_sentences)
+    # print(summarized_sentences)
     final_sentences = [ w.text for w in summarized_sentences ]
     summary = ' '.join(final_sentences)
-    print(summary)
+    # print(summary)
     return summary
-# max_freq = Counter(keyword).most_common(1)[0][1]
-# for word in freq_word.keys():  
-#         freq_word[word] = (freq_word[word]/max_freq)
-# freq_word.most_common(10)    
 
-def match_resume_and_job(job_description, resume):
+
+def match_resume_and_job(job_description, resume,head,i):
     text_list = [job_description, resume]
     from sklearn.feature_extraction.text import CountVectorizer
     cv = CountVectorizer()
@@ -113,24 +122,29 @@ def match_resume_and_job(job_description, resume):
     # get the match percentage
     matchPercentage = cosine_similarity(count_matrix)[0][1] * 100
     matchPercentage = round(matchPercentage, 2) # round to two decimal
-    print("Your resume matches about "+ str(matchPercentage)+ "% of the job description.")
-    print(keywords(text, ratio=0.25)) 
+    print("Job {} - Score {} %".format(i,str(matchPercentage)))
+    print("Infos",head)
+    # print("Your resume matches about "+ str(matchPercentage)+ "% of the job description.")
+    print("----------------------------------------------------------------------------")
+    # print(keywords(job_description, ratio=0.25)) 
     # gives you the keywords of the job description
-
-jobs='https://www.linkedin.com/jobs/search/?f_L=France&geoId=105015875&keywords=Data%20scientist&location=France' 
-userN="fotzotalom@gmail.com"
-pswd="7662;Y@nn"   
+from urllib.parse import quote
+ 
 
 def matching_pipeline(job_link,user,pwd,resume_path):
-    links=get_jobs_links(job_link,user,pwd)
-    job_content=scrape_job(links[0])
-    # keywords=get_keywords_from_job(job_content)
-    # freq_words=get_n_common_words(keywords,5)
-    # sent_strength=get_sent_strength(freq_words)
-    # summary=summurize_sent(sent_strength)
     resume_content = docx2txt.process("CV_Brice_FOTZO.docx")
-    match_resume_and_job(job_content,resume_content)
-    
+    browser,links,heads=get_jobs_links(job_link,user,pwd)
+    sleep(3)
+    cpt=1
+    for head,job in zip(heads,links):
+        job_content=scrape_job(browser,job)
+        match_resume_and_job(job_content,resume_content,head,cpt)
+        cpt=cpt+1
 
 if __name__=="__main__":
+    userN=input("Email/Nom d'utilisateur : ")
+    pswd=getpass("Mot de passe : ")
+    job_query_online = input("Enter Job description : ")
+    keyword_job=quote(job_query_online)
+    jobs="https://www.linkedin.com/jobs/search/?keywords="+keyword_job+"&location=France"
     matching_pipeline(job_link=jobs,user=userN,pwd=pswd,resume_path="CV_Brice_FOTZO.docx")
